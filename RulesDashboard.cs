@@ -35,6 +35,7 @@ namespace OutlookListener
             MaximizeBox = false;
             MinimizeBox = false;
             Padding = new Padding(0);
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
             BuildUi();
             LoadRules();
@@ -117,12 +118,22 @@ namespace OutlookListener
             Controls.Add(_grid);
 
             int buttonTop = 490;
-            var btnAdd = TkeTheme.CreatePrimaryButton("Add Rule", 12, buttonTop, 104, 38);
-            var btnEdit = TkeTheme.CreateSecondaryButton("Edit", 128, buttonTop, 98, 38);
-            var btnDelete = TkeTheme.CreateSecondaryButton("Delete", 238, buttonTop, 100, 38);
-            var btnRefresh = TkeTheme.CreateSecondaryButton("Refresh", 350, buttonTop, 100, 38);
-            var btnOpenLog = TkeTheme.CreateSecondaryButton("View Log", 660, buttonTop, 110, 38);
-            var btnOpenRules = TkeTheme.CreateSecondaryButton("Open rules.json", 472, buttonTop, 176, 38);
+            var btnAdd = TkeTheme.CreatePrimaryButton("Add Rule", 12, buttonTop, 120, 38);
+            var btnEdit = TkeTheme.CreateSecondaryButton("Edit", 144, buttonTop, 112, 38);
+            var btnDelete = TkeTheme.CreateSecondaryButton("Delete", 268, buttonTop, 114, 38);
+            var btnRefresh = TkeTheme.CreateSecondaryButton("Refresh", 394, buttonTop, 114, 38);
+            var btnOpenRules = TkeTheme.CreateSecondaryButton("Open rules.json", 520, buttonTop, 190, 38);
+            var btnOpenLog = TkeTheme.CreateSecondaryButton("View Log", 722, buttonTop, 122, 38);
+
+            // TKE icons (sourced from Resources\Icon Library, embedded as build resources -
+            // see build.ps1). Add/Edit/Delete/Refresh/View Log/Open rules.json all have a
+            // genuine semantic match in the library; no icon was invented for ones that don't.
+            TkeTheme.SetIcon(btnAdd, "create-folder-white.png");
+            TkeTheme.SetIcon(btnEdit, "blog-black.png");
+            TkeTheme.SetIcon(btnDelete, "bin-black.png");
+            TkeTheme.SetIcon(btnRefresh, "life-cycle-black.png");
+            TkeTheme.SetIcon(btnOpenLog, "log-black.png");
+            TkeTheme.SetIcon(btnOpenRules, "document-black.png");
 
             foreach (var btn in new[] { btnAdd, btnEdit, btnDelete, btnRefresh, btnOpenLog, btnOpenRules })
             {

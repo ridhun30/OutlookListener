@@ -1,5 +1,7 @@
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace OutlookListener
@@ -119,6 +121,35 @@ namespace OutlookListener
         public static Button CreateSecondaryButton(string text, int width, int height)
         {
             return CreateSecondaryButton(text, 0, 0, width, height);
+        }
+
+        // Loads a TKE icon embedded as a build resource (see build.ps1's /resource: args)
+        // and resizes it to a crisp small size for use inside a button.
+        public static Image LoadIcon(string resourceName, int size)
+        {
+            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
+            using (var source = Image.FromStream(stream))
+            {
+                var bmp = new Bitmap(size, size);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(source, 0, 0, size, size);
+                }
+                return bmp;
+            }
+        }
+
+        // Attaches a TKE icon to a button: image on the left, text centered in the
+        // remaining space.
+        public static void SetIcon(Button btn, string resourceName)
+        {
+            btn.Image = LoadIcon(resourceName, 16);
+            btn.ImageAlign = ContentAlignment.MiddleLeft;
+            btn.TextAlign = ContentAlignment.MiddleCenter;
+            btn.TextImageRelation = TextImageRelation.ImageBeforeText;
+            btn.Padding = new Padding(8, 0, 0, 0);
         }
     }
 }

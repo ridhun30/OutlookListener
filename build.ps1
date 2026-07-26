@@ -45,6 +45,23 @@ if (-not (Test-Path $sysWebExtensions)) {
 # Stop any running instances first - csc can't overwrite a locked exe.
 Get-Process -Name "OutlookListener","RulesDashboard" -ErrorAction SilentlyContinue | Stop-Process -Force
 
+$appIcon = Join-Path $root "OutlookListener.ico"
+$iconArg = if (Test-Path $appIcon) { "/win32icon:$appIcon" } else { "" }
+
+# TKE icon assets embedded into RulesDashboard.exe as resources (button icons) -
+# sourced from Resources\Icon Library per the icons-only-from-there rule; copied
+# locally into Icons\ so the built exe is self-contained at runtime.
+$iconsDir = Join-Path $root "Icons"
+$buttonIcons = @("create-folder-white.png", "blog-black.png", "bin-black.png", "life-cycle-black.png", "log-black.png", "document-black.png")
+$resourceArgs = @()
+foreach ($iconFile in $buttonIcons) {
+    $iconPath = Join-Path $iconsDir $iconFile
+    if (-not (Test-Path $iconPath)) {
+        throw "Expected icon asset not found: $iconPath"
+    }
+    $resourceArgs += "/resource:$iconPath,$iconFile"
+}
+
 # --- OutlookListener.exe (listener) ---
 $listenerExe = Join-Path $root "OutlookListener.exe"
 $listenerRefs = @($sysDll, $sysWindowsForms, $sysWebExtensions, $outlookInterop) -join ","
@@ -54,7 +71,7 @@ $listenerSrc = @(
     (Join-Path $root "RulesEngine.cs")
 )
 
-& $csc /nologo /target:exe /out:"$listenerExe" /reference:$listenerRefs $listenerSrc
+& $csc /nologo /target:exe /out:"$listenerExe" $iconArg /reference:$listenerRefs $listenerSrc
 if ($LASTEXITCODE -ne 0) {
     throw "OutlookListener.exe compilation failed (exit code $LASTEXITCODE)."
 }
@@ -70,7 +87,7 @@ $dashboardSrc = @(
     (Join-Path $root "RulesModel.cs")
 )
 
-& $csc /nologo /target:winexe /out:"$dashboardExe" /reference:$dashboardRefs $dashboardSrc
+& $csc /nologo /target:winexe /out:"$dashboardExe" $iconArg $resourceArgs /reference:$dashboardRefs $dashboardSrc
 if ($LASTEXITCODE -ne 0) {
     throw "RulesDashboard.exe compilation failed (exit code $LASTEXITCODE)."
 }

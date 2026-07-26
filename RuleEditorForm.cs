@@ -45,6 +45,7 @@ namespace OutlookListener
             BackColor = TkeTheme.Gray5;
             ForeColor = TkeTheme.Gray1;
             Font = TkeTheme.Body(10F);
+            try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
             BuildUi();
             LoadFromRule();
