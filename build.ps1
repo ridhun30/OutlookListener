@@ -42,6 +42,7 @@ $sysWindowsForms = Join-Path $netDir "System.Windows.Forms.dll"
 $sysDrawing = Join-Path $netDir "System.Drawing.dll"
 $sysDll = Join-Path $netDir "System.dll"
 $sysSecurity = Join-Path $netDir "System.Security.dll"
+$sysCore = Join-Path $netDir "System.Core.dll"
 
 if (-not (Test-Path $sysWebExtensions)) {
     throw "System.Web.Extensions.dll not found under $netDir - needed for JSON (de)serialization."
@@ -69,7 +70,7 @@ foreach ($iconFile in $buttonIcons) {
 
 # --- OutlookListener.exe (listener) ---
 $listenerExe = Join-Path $root "OutlookListener.exe"
-$listenerRefs = @($sysDll, $sysWindowsForms, $sysWebExtensions, $sysSecurity, $outlookInterop) -join ","
+$listenerRefs = @($sysDll, $sysCore, $sysWindowsForms, $sysDrawing, $sysWebExtensions, $sysSecurity, $outlookInterop) -join ","
 $listenerSrc = @(
     (Join-Path $root "OutlookListener.cs"),
     (Join-Path $root "RulesModel.cs"),
@@ -77,7 +78,10 @@ $listenerSrc = @(
     (Join-Path $root "WorkTrackSettings.cs"),
     (Join-Path $root "AskDetector.cs"),
     (Join-Path $root "WorkTrackConnector.cs"),
-    (Join-Path $root "WorkTrackSync.cs")
+    (Join-Path $root "WorkTrackSync.cs"),
+    (Join-Path $root "WorkTrackRules.cs"),
+    (Join-Path $root "WorkTrackReminders.cs"),
+    (Join-Path $root "TkeTheme.cs")
 )
 
 & $csc /nologo /target:exe /out:"$listenerExe" $iconArg /reference:$listenerRefs $listenerSrc

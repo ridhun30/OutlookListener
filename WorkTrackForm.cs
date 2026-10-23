@@ -18,7 +18,7 @@ namespace OutlookListener
         private Label _lblStatus;
         private TextBox _txtCode;
         private Label _lblTestResult;
-        private CheckBox _chkFlags, _chkAsks, _chkCalendar, _chkPaused;
+        private CheckBox _chkFlags, _chkAsks, _chkCalendar, _chkReminders, _chkPaused;
         private TextBox _txtBoss, _txtBossPerson, _txtVips, _txtPhrases, _txtIgnore;
         private Panel _pnlAdvanced;
         private Button _btnAdvanced;
@@ -71,7 +71,7 @@ namespace OutlookListener
         {
             var header = new Panel { Dock = DockStyle.Top, Height = 72, BackColor = TkeTheme.Black };
             header.Paint += (s, e) => TkeTheme.PaintHeader(e.Graphics, header.ClientRectangle,
-                "Work Track", 16F, 18, "Send flagged mail, asks and meetings to your Work Track app", 9.5F, 46);
+                "Work Track", 16F, 18, "Flagged mail, asks and meetings to Work Track — and its reminders on this computer", 9.5F, 46);
             Controls.Add(header);
 
             int y = 84;
@@ -108,6 +108,9 @@ namespace OutlookListener
             y += 70;
             _chkCalendar = Option("Send today's meetings to my phone",
                 "After each meeting your phone asks \"any action items?\". Only titles and times are sent.", y);
+            y += 62;
+            _chkReminders = Option("Show Work Track reminders on this computer",
+                "The same reminders as your phone, as Windows notifications. The tray icon shows how many of today's tasks are left.", y);
             y += 66;
 
             // Step 3
@@ -170,6 +173,7 @@ namespace OutlookListener
             _chkFlags.Checked = _settings.FlagSync;
             _chkAsks.Checked = _settings.AskDetection;
             _chkCalendar.Checked = _settings.CalendarPush;
+            _chkReminders.Checked = _settings.DesktopReminders;
             _chkPaused.Checked = _code != null && !_settings.Enabled;
             _txtBoss.Text = _settings.BossNames;
             _txtVips.Text = _settings.VipNames;
@@ -312,6 +316,7 @@ namespace OutlookListener
             _settings.FlagSync = _chkFlags.Checked;
             _settings.AskDetection = _chkAsks.Checked;
             _settings.CalendarPush = _chkCalendar.Checked;
+            _settings.DesktopReminders = _chkReminders.Checked;
             _settings.BossNames = _txtBoss.Text.Trim();
             _settings.VipNames = _txtVips.Text.Trim();
             _settings.BossPerson = _txtBossPerson.Text.Trim().Length > 0 ? _txtBossPerson.Text.Trim() : "Boss";

@@ -18,6 +18,9 @@ namespace OutlookListener
         public bool AskDetection { get; set; }
         public bool CalendarPush { get; set; }
 
+        // Show Work Track's reminders (morning plan, nags, follow-ups, …) as Windows notifications.
+        public bool DesktopReminders { get; set; }
+
         // DPAPI-protected, base64. Use GetCode()/SetCode().
         public string ProtectedCode { get; set; }
 
@@ -38,6 +41,7 @@ namespace OutlookListener
             FlagSync = true;
             AskDetection = true;
             CalendarPush = true;
+            DesktopReminders = true;
             ProtectedCode = "";
             AskPhrases = new List<string>(AskDetector.DefaultPhrases);
             IgnorePhrases = new List<string>(AskDetector.DefaultIgnorePhrases);
@@ -101,6 +105,11 @@ namespace OutlookListener
         public string Uid { get; set; }
         public string RefreshToken { get; set; }
 
+        // Address of the Work Track web app (opened when a reminder is clicked).
+        public string AppUrl { get; set; }
+
+        public const string DefaultAppUrl = "https://ridhun30.github.io/work-track/";
+
         public static ConnectorCode Parse(string text)
         {
             if (text == null) return null;
@@ -113,8 +122,10 @@ namespace OutlookListener
                 ApiKey = Str(d, "apiKey"),
                 ProjectId = Str(d, "projectId"),
                 Uid = Str(d, "uid"),
-                RefreshToken = Str(d, "refreshToken")
+                RefreshToken = Str(d, "refreshToken"),
+                AppUrl = Str(d, "appUrl")
             };
+            if (string.IsNullOrEmpty(code.AppUrl)) code.AppUrl = DefaultAppUrl;
             if (string.IsNullOrEmpty(code.ApiKey) || string.IsNullOrEmpty(code.ProjectId)
                 || string.IsNullOrEmpty(code.Uid) || string.IsNullOrEmpty(code.RefreshToken)) return null;
             return code;
@@ -124,7 +135,8 @@ namespace OutlookListener
         {
             var d = new Dictionary<string, object>
             {
-                { "v", 1 }, { "apiKey", ApiKey }, { "projectId", ProjectId }, { "uid", Uid }, { "refreshToken", RefreshToken }
+                { "v", 1 }, { "apiKey", ApiKey }, { "projectId", ProjectId }, { "uid", Uid }, { "refreshToken", RefreshToken },
+                { "appUrl", AppUrl ?? DefaultAppUrl }
             };
             return "WT1:" + Convert.ToBase64String(Encoding.UTF8.GetBytes(new JavaScriptSerializer().Serialize(d)));
         }

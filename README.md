@@ -66,6 +66,11 @@ that runs on your phone and in the browser:
   in Work Track whether to keep each item.
 - **Today's and tomorrow's meetings are sent to your phone**, so it can ask "any action items?"
   after each one. Only titles, times and the number of attendees are sent.
+- **Reminders on this computer.** The same reminders as the phone (pick today's 3, overdue
+  and due-today every 2 hours, follow-ups, evening review, boss 1:1 prep, "any action items?"
+  after meetings) appear as Windows notifications, with the usual notification sound. Clicking
+  one opens Work Track on the right page. The tray icon shows how many of today's tasks are
+  left; right-click it for **Done**, **Next task**, **Snooze** and **Pause for today**.
 
 ### Turn it on
 
@@ -103,8 +108,13 @@ except completing a flag you set. Each mail can only ever create one task.
   to Cloud Firestore's REST API with the connection code's sign-in, so it needs no Microsoft
   Graph access or IT approval. Outlook is only touched on the listener's main thread; network
   calls run in the background.
+- Desktop reminders (`WorkTrackReminders.cs`, `WorkTrackRules.cs`) keep a local copy of your
+  tasks: one full read an hour and, every 2 minutes, only the tasks changed since the last read,
+  which stays well inside Firebase's free tier. `WorkTrackRules.cs` is a port of Work Track's
+  reminder rules and is checked against the same test cases (`tests\vectors`).
 - GitHub Actions (`.github/workflows/build.yml`) builds both exes with the same `csc.exe` on
-  Windows, runs `tests\AskDetectorTests.cs`, and refreshes the committed exes and zip on `main`.
+  Windows, runs `tests\AskDetectorTests.cs` and `tests\WorkTrackRulesTests.cs`, and refreshes
+  the committed exes and zip on `main`.
 
 ## Limitations
 

@@ -32,6 +32,7 @@ namespace OutlookListener
         private System.Windows.Forms.Timer _pump, _calendarTimer, _pollTimer;
         private DateTime _calendarDue = DateTime.MaxValue;
         private FileSystemWatcher _watcher;
+        private WorkTrackReminders _reminders;
 
         public WorkTrackSync(Outlook.NameSpace ns, Outlook.Items inboxItems, Action<string> log)
         {
@@ -57,6 +58,8 @@ namespace OutlookListener
                 _calendar.ItemChange += OnCalendarChange;
             }
             catch (Exception ex) { _log("[Work Track] Calendar not available: " + ex.Message); }
+
+            _reminders = new WorkTrackReminders(_log, a => _mainThread.Enqueue(a));
 
             _pump = new System.Windows.Forms.Timer { Interval = 1000 };
             _pump.Tick += (s, e) => Pump();
@@ -85,6 +88,7 @@ namespace OutlookListener
             try
             {
                 if (_watcher != null) _watcher.Dispose();
+                if (_reminders != null) _reminders.Stop();
                 foreach (var t in new[] { _pump, _calendarTimer, _pollTimer }) if (t != null) t.Stop();
                 _inbox.ItemChange -= OnInboxItemChange;
                 if (_calendar != null)
@@ -107,6 +111,7 @@ namespace OutlookListener
             _settings = WorkTrackSettings.Load();
             var code = _settings.GetCode();
             _conn = code != null ? new WorkTrackConnector(code) : null;
+            _reminders.Configure(_settings.Enabled && _settings.DesktopReminders, code);
             if (!_settings.Enabled || _conn == null)
             {
                 _log("[Work Track] Off. Connect it from the Rules Dashboard (Work Track button).");
@@ -114,7 +119,7 @@ namespace OutlookListener
             }
             _log("[Work Track] On: " + Describe());
             if (_settings.FlagSync) ScanFlagged();
-            if (_settings.CalendarPush) PushCalendar();
+            PushCalendar();
         }
 
         private string Describe()
@@ -123,6 +128,7 @@ namespace OutlookListener
             if (_settings.FlagSync) on.Add("flagged mail");
             if (_settings.AskDetection) on.Add("asks");
             if (_settings.CalendarPush) on.Add("calendar");
+            if (_settings.DesktopReminders) on.Add("reminders on this computer");
             return on.Count == 0 ? "nothing selected" : string.Join(", ", on.ToArray());
         }
 
@@ -344,9 +350,11 @@ namespace OutlookListener
             _calendarDue = DateTime.Now.AddSeconds(10); // debounce bursts of changes
         }
 
+        // Reads today's and tomorrow's meetings: sent to the phone (calendar push) and used for
+        // "meeting just ended" reminders on this computer.
         private void PushCalendar()
         {
-            if (!Active || !_settings.CalendarPush || _calendar == null) return;
+            if (!Active || _calendar == null || (!_settings.CalendarPush && !_settings.DesktopReminders)) return;
             var days = new List<KeyValuePair<string, List<object>>>();
             try
             {
@@ -361,6 +369,15 @@ namespace OutlookListener
                 _log("[Work Track] Reading the calendar failed: " + ex.Message);
                 return;
             }
+            var events = new List<WtCalEvent>();
+            foreach (var d in days)
+                foreach (Dictionary<string, object> e in d.Value)
+                    events.Add(new WtCalEvent
+                    {
+                        Id = (string)e["id"], Title = (string)e["title"], Start = (long)e["start"], End = (long)e["end"], Attendees = (int)e["attendees"]
+                    });
+            _reminders.SetCalendar(events);
+            if (!_settings.CalendarPush) return;
             Background("Sending meetings", () =>
             {
                 long now = WorkTrackConnector.NowMs();

@@ -110,19 +110,59 @@ namespace OutlookListener
         /// <summary>Tasks that came from flagged mail and were finished in Work Track, but whose flag isn't cleared yet.</summary>
         public List<Dictionary<string, object>> FinishedFlaggedTasks()
         {
-            var filters = new ArrayList
+            return Query(new ArrayList
             {
-                EqualFilter("source", "outlook"),
-                EqualFilter("status", "done"),
-                EqualFilter("outlookFlagSynced", false)
-            };
+                FieldFilter("source", "EQUAL", "outlook"),
+                FieldFilter("status", "EQUAL", "done"),
+                FieldFilter("outlookFlagSynced", "EQUAL", false)
+            }, 50);
+        }
+
+        /// <summary>Tasks changed after the given time (epoch ms), for incremental refreshes.</summary>
+        public List<Dictionary<string, object>> TasksUpdatedSince(long sinceMs)
+        {
+            return Query(new ArrayList { FieldFilter("updatedAt", "GREATER_THAN", sinceMs) }, 500);
+        }
+
+        /// <summary>Every task (paged). Each row has an "id" entry plus the task's fields.</summary>
+        public List<Dictionary<string, object>> AllTasks()
+        {
+            var rows = new List<Dictionary<string, object>>();
+            string token = null;
+            do
+            {
+                string url = UserPath + "/tasks?pageSize=300" + (token != null ? "&pageToken=" + Uri.EscapeDataString(token) : "");
+                var res = Send("GET", url, null, null, true);
+                if (res.Status != 200) throw new WorkTrackException("Reading tasks failed (" + res.Status + "): " + Short(res.Body));
+                var d = Json.Deserialize<Dictionary<string, object>>(res.Body);
+                var docs = d.ContainsKey("documents") ? d["documents"] as IList : null;
+                if (docs != null) foreach (object o in docs) rows.Add(Row((Dictionary<string, object>)o));
+                token = d.ContainsKey("nextPageToken") ? d["nextPageToken"] as string : null;
+            } while (!string.IsNullOrEmpty(token));
+            return rows;
+        }
+
+        /// <summary>One document under the user (e.g. "settings/main"), or null if it doesn't exist.</summary>
+        public Dictionary<string, object> GetDocument(string relativePath)
+        {
+            var res = Send("GET", UserPath + "/" + relativePath, null, null, true);
+            if (res.Status == 404) return null;
+            if (res.Status != 200) throw new WorkTrackException("Reading " + relativePath + " failed (" + res.Status + "): " + Short(res.Body));
+            return Row(Json.Deserialize<Dictionary<string, object>>(res.Body));
+        }
+
+        private List<Dictionary<string, object>> Query(ArrayList filters, int limit)
+        {
+            object where = filters.Count == 1
+                ? filters[0]
+                : new Dictionary<string, object> { { "compositeFilter", new Dictionary<string, object> { { "op", "AND" }, { "filters", filters } } } };
             var query = new Dictionary<string, object>
             {
                 { "structuredQuery", new Dictionary<string, object>
                     {
                         { "from", new ArrayList { new Dictionary<string, object> { { "collectionId", "tasks" } } } },
-                        { "where", new Dictionary<string, object> { { "compositeFilter", new Dictionary<string, object> { { "op", "AND" }, { "filters", filters } } } } },
-                        { "limit", 50 }
+                        { "where", where },
+                        { "limit", limit }
                     }
                 }
             };
@@ -132,14 +172,17 @@ namespace OutlookListener
             foreach (object row in Json.Deserialize<ArrayList>(res.Body))
             {
                 var r = row as Dictionary<string, object>;
-                if (r == null || !r.ContainsKey("document")) continue;
-                var doc = (Dictionary<string, object>)r["document"];
-                var plain = FromFields(doc.ContainsKey("fields") ? (Dictionary<string, object>)doc["fields"] : new Dictionary<string, object>());
-                string name = (string)doc["name"];
-                plain["id"] = name.Substring(name.LastIndexOf('/') + 1);
-                rows.Add(plain);
+                if (r != null && r.ContainsKey("document")) rows.Add(Row((Dictionary<string, object>)r["document"]));
             }
             return rows;
+        }
+
+        private static Dictionary<string, object> Row(Dictionary<string, object> doc)
+        {
+            var plain = FromFields(doc.ContainsKey("fields") ? (Dictionary<string, object>)doc["fields"] : new Dictionary<string, object>());
+            string name = (string)doc["name"];
+            plain["id"] = name.Substring(name.LastIndexOf('/') + 1);
+            return plain;
         }
 
         // ---------- helpers ----------
@@ -183,14 +226,14 @@ namespace OutlookListener
             return t;
         }
 
-        private static Dictionary<string, object> EqualFilter(string field, object value)
+        private static Dictionary<string, object> FieldFilter(string field, string op, object value)
         {
             return new Dictionary<string, object>
             {
                 { "fieldFilter", new Dictionary<string, object>
                     {
                         { "field", new Dictionary<string, object> { { "fieldPath", field } } },
-                        { "op", "EQUAL" },
+                        { "op", op },
                         { "value", Value(value) }
                     }
                 }
@@ -227,17 +270,38 @@ namespace OutlookListener
         public static Dictionary<string, object> FromFields(Dictionary<string, object> fields)
         {
             var plain = new Dictionary<string, object>();
-            foreach (var kv in fields)
+            if (fields == null) return plain;
+            foreach (var kv in fields) plain[kv.Key] = Plain(kv.Value);
+            return plain;
+        }
+
+        // Typed value -> plain value; maps and arrays are converted recursively.
+        public static object Plain(object typedValue)
+        {
+            var tv = typedValue as Dictionary<string, object>;
+            if (tv == null || tv.Count == 0) return null;
+            foreach (var t in tv)
             {
-                var tv = kv.Value as Dictionary<string, object>;
-                if (tv == null || tv.Count == 0) continue;
-                foreach (var t in tv)
+                switch (t.Key)
                 {
-                    plain[kv.Key] = t.Key == "integerValue" ? (object)long.Parse(Convert.ToString(t.Value, CultureInfo.InvariantCulture), CultureInfo.InvariantCulture) : t.Value;
-                    break;
+                    case "integerValue":
+                        return long.Parse(Convert.ToString(t.Value, CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                    case "doubleValue":
+                        return Convert.ToDouble(t.Value, CultureInfo.InvariantCulture);
+                    case "mapValue":
+                        var m = t.Value as Dictionary<string, object>;
+                        return FromFields(m != null && m.ContainsKey("fields") ? (Dictionary<string, object>)m["fields"] : null);
+                    case "arrayValue":
+                        var list = new List<object>();
+                        var a = t.Value as Dictionary<string, object>;
+                        var values = a != null && a.ContainsKey("values") ? a["values"] as IList : null;
+                        if (values != null) foreach (object v in values) list.Add(Plain(v));
+                        return list;
+                    default:
+                        return t.Value; // stringValue, booleanValue, nullValue, timestampValue
                 }
             }
-            return plain;
+            return null;
         }
 
         private struct Response

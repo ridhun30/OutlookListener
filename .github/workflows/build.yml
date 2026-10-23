@@ -30,14 +30,18 @@ jobs:
         shell: pwsh
         run: .\build.ps1
 
-      - name: AskDetector tests
+      - name: Tests (AskDetector, WorkTrackRules)
         shell: pwsh
         run: |
           $csc = Get-ChildItem "$env:WINDIR\Microsoft.NET\Framework64" -Recurse -Filter csc.exe | Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
           & $csc /nologo /out:AskDetectorTests.exe tests\AskDetectorTests.cs AskDetector.cs
-          if ($LASTEXITCODE -ne 0) { throw "test build failed" }
+          if ($LASTEXITCODE -ne 0) { throw "AskDetector test build failed" }
           .\AskDetectorTests.exe
-          if ($LASTEXITCODE -ne 0) { throw "tests failed" }
+          if ($LASTEXITCODE -ne 0) { throw "AskDetector tests failed" }
+          & $csc /nologo /out:WorkTrackRulesTests.exe /r:System.Web.Extensions.dll tests\WorkTrackRulesTests.cs WorkTrackRules.cs
+          if ($LASTEXITCODE -ne 0) { throw "WorkTrackRules test build failed" }
+          .\WorkTrackRulesTests.exe tests\vectors\rules-cases.json
+          if ($LASTEXITCODE -ne 0) { throw "WorkTrackRules tests failed" }
 
       - name: Package zip
         shell: pwsh
