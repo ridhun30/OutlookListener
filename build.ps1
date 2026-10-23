@@ -26,8 +26,12 @@ if (-not $csc) {
 
 Write-Output "Using compiler: $csc"
 
-$outlookInterop = Get-ChildItem -Path "C:\Windows\assembly\GAC_MSIL\Microsoft.Office.Interop.Outlook" -Recurse -Filter "Microsoft.Office.Interop.Outlook.dll" -ErrorAction SilentlyContinue |
-    Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+# OUTLOOK_INTEROP lets CI (no Office installed) point at the interop DLL from NuGet.
+$outlookInterop = $env:OUTLOOK_INTEROP
+if (-not $outlookInterop) {
+    $outlookInterop = Get-ChildItem -Path "C:\Windows\assembly\GAC_MSIL\Microsoft.Office.Interop.Outlook" -Recurse -Filter "Microsoft.Office.Interop.Outlook.dll" -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+}
 if (-not $outlookInterop) {
     throw "Microsoft.Office.Interop.Outlook.dll not found in the GAC - is Outlook (with primary interop assemblies) installed?"
 }
@@ -37,6 +41,7 @@ $sysWebExtensions = Join-Path $netDir "System.Web.Extensions.dll"
 $sysWindowsForms = Join-Path $netDir "System.Windows.Forms.dll"
 $sysDrawing = Join-Path $netDir "System.Drawing.dll"
 $sysDll = Join-Path $netDir "System.dll"
+$sysSecurity = Join-Path $netDir "System.Security.dll"
 
 if (-not (Test-Path $sysWebExtensions)) {
     throw "System.Web.Extensions.dll not found under $netDir - needed for JSON (de)serialization."
@@ -64,11 +69,15 @@ foreach ($iconFile in $buttonIcons) {
 
 # --- OutlookListener.exe (listener) ---
 $listenerExe = Join-Path $root "OutlookListener.exe"
-$listenerRefs = @($sysDll, $sysWindowsForms, $sysWebExtensions, $outlookInterop) -join ","
+$listenerRefs = @($sysDll, $sysWindowsForms, $sysWebExtensions, $sysSecurity, $outlookInterop) -join ","
 $listenerSrc = @(
     (Join-Path $root "OutlookListener.cs"),
     (Join-Path $root "RulesModel.cs"),
-    (Join-Path $root "RulesEngine.cs")
+    (Join-Path $root "RulesEngine.cs"),
+    (Join-Path $root "WorkTrackSettings.cs"),
+    (Join-Path $root "AskDetector.cs"),
+    (Join-Path $root "WorkTrackConnector.cs"),
+    (Join-Path $root "WorkTrackSync.cs")
 )
 
 & $csc /nologo /target:exe /out:"$listenerExe" $iconArg /reference:$listenerRefs $listenerSrc
@@ -79,12 +88,16 @@ Write-Output "Built: $listenerExe"
 
 # --- RulesDashboard.exe (GUI) ---
 $dashboardExe = Join-Path $root "RulesDashboard.exe"
-$dashboardRefs = @($sysDll, $sysWindowsForms, $sysDrawing, $sysWebExtensions) -join ","
+$dashboardRefs = @($sysDll, $sysWindowsForms, $sysDrawing, $sysWebExtensions, $sysSecurity) -join ","
 $dashboardSrc = @(
     (Join-Path $root "RulesDashboard.cs"),
     (Join-Path $root "RuleEditorForm.cs"),
+    (Join-Path $root "WorkTrackForm.cs"),
     (Join-Path $root "TkeTheme.cs"),
-    (Join-Path $root "RulesModel.cs")
+    (Join-Path $root "RulesModel.cs"),
+    (Join-Path $root "WorkTrackSettings.cs"),
+    (Join-Path $root "AskDetector.cs"),
+    (Join-Path $root "WorkTrackConnector.cs")
 )
 
 & $csc /nologo /target:winexe /out:"$dashboardExe" $iconArg $resourceArgs /reference:$dashboardRefs $dashboardSrc
