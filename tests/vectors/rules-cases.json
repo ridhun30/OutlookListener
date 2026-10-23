@@ -1,0 +1,54 @@
+{
+  "_doc": "Rule vectors shared by web and Android tests. Work week Sun-Thu (0-4). 2026-10-25 is a Sunday.",
+  "workDays": [0, 1, 2, 3, 4],
+  "workDaysBetween": [
+    { "a": "2026-10-22", "b": "2026-10-25", "expect": 1 },
+    { "a": "2026-10-25", "b": "2026-10-29", "expect": 4 },
+    { "a": "2026-10-25", "b": "2026-10-25", "expect": 0 },
+    { "a": "2026-10-29", "b": "2026-10-25", "expect": 0 },
+    { "a": "2026-10-22", "b": "2026-10-29", "expect": 5 }
+  ],
+  "addWorkDays": [
+    { "date": "2026-10-29", "n": 1, "expect": "2026-11-01" },
+    { "date": "2026-10-25", "n": 2, "expect": "2026-10-27" },
+    { "date": "2026-10-30", "n": 1, "expect": "2026-11-01" },
+    { "date": "2026-10-28", "n": 3, "expect": "2026-11-02" }
+  ],
+  "nextOccurrence": [
+    { "rec": { "freq": "daily", "interval": 1, "byDay": [], "dayOfMonth": null }, "after": "2026-10-25", "anchor": "2026-10-25", "expect": "2026-10-26" },
+    { "rec": { "freq": "daily", "interval": 3, "byDay": [], "dayOfMonth": null }, "after": "2026-10-25", "anchor": "2026-10-25", "expect": "2026-10-28" },
+    { "rec": { "freq": "daily", "interval": 3, "byDay": [], "dayOfMonth": null }, "after": "2026-10-27", "anchor": "2026-10-25", "expect": "2026-10-28" },
+    { "rec": { "freq": "workdays", "interval": 1, "byDay": [], "dayOfMonth": null }, "after": "2026-10-29", "anchor": "2026-10-29", "expect": "2026-11-01" },
+    { "rec": { "freq": "weekly", "interval": 1, "byDay": [4], "dayOfMonth": null }, "after": "2026-10-29", "anchor": "2026-10-29", "expect": "2026-11-05" },
+    { "rec": { "freq": "weekly", "interval": 1, "byDay": [0, 3], "dayOfMonth": null }, "after": "2026-10-25", "anchor": "2026-10-25", "expect": "2026-10-28" },
+    { "rec": { "freq": "weekly", "interval": 1, "byDay": [0, 3], "dayOfMonth": null }, "after": "2026-10-28", "anchor": "2026-10-25", "expect": "2026-11-01" },
+    { "rec": { "freq": "weekly", "interval": 2, "byDay": [3], "dayOfMonth": null }, "after": "2026-10-28", "anchor": "2026-10-28", "expect": "2026-11-11" },
+    { "rec": { "freq": "weekly", "interval": 2, "byDay": [3], "dayOfMonth": null }, "after": "2026-10-30", "anchor": "2026-10-28", "expect": "2026-11-11" },
+    { "rec": { "freq": "weekly", "interval": 1, "byDay": [0], "dayOfMonth": null }, "after": "2026-10-31", "anchor": "2026-10-25", "expect": "2026-11-01" },
+    { "rec": { "freq": "monthly", "interval": 1, "byDay": [], "dayOfMonth": 31 }, "after": "2026-10-31", "anchor": "2026-10-31", "expect": "2026-11-30" },
+    { "rec": { "freq": "monthly", "interval": 1, "byDay": [], "dayOfMonth": 31 }, "after": "2026-11-30", "anchor": "2026-10-31", "expect": "2026-12-31" },
+    { "rec": { "freq": "monthly", "interval": 1, "byDay": [], "dayOfMonth": 1 }, "after": "2026-11-01", "anchor": "2026-11-01", "expect": "2026-12-01" },
+    { "rec": { "freq": "monthly", "interval": 3, "byDay": [], "dayOfMonth": 15 }, "after": "2026-01-15", "anchor": "2026-01-15", "expect": "2026-04-15" },
+    { "rec": { "freq": "monthly", "interval": 1, "byDay": [], "dayOfMonth": 29 }, "after": "2027-01-29", "anchor": "2027-01-29", "expect": "2027-02-28" }
+  ],
+  "isStale": {
+    "today": "2026-10-29",
+    "staleDays": 3,
+    "cases": [
+      { "name": "untouched 4 work days, no due", "task": { "status": "open", "lastTouchedDate": "2026-10-25" }, "expect": true },
+      { "name": "touched 2 work days ago", "task": { "status": "open", "lastTouchedDate": "2026-10-27" }, "expect": false },
+      { "name": "future due date is scheduled", "task": { "status": "open", "lastTouchedDate": "2026-10-01", "dueDate": "2026-11-05" }, "expect": false },
+      { "name": "due today is scheduled", "task": { "status": "open", "lastTouchedDate": "2026-10-01", "dueDate": "2026-10-29" }, "expect": false },
+      { "name": "overdue by 4 work days even if touched", "task": { "status": "open", "lastTouchedDate": "2026-10-28", "dueDate": "2026-10-25" }, "expect": true },
+      { "name": "overdue by 2, touched recently", "task": { "status": "open", "lastTouchedDate": "2026-10-28", "dueDate": "2026-10-27" }, "expect": false },
+      { "name": "old inbox item", "task": { "status": "inbox", "lastTouchedDate": "2026-10-22" }, "expect": true },
+      { "name": "waiting is never stale", "task": { "status": "waiting", "lastTouchedDate": "2026-10-01" }, "expect": false },
+      { "name": "someday is never stale", "task": { "status": "someday", "lastTouchedDate": "2026-10-01" }, "expect": false },
+      { "name": "done is never stale", "task": { "status": "done", "lastTouchedDate": "2026-10-01" }, "expect": false },
+      { "name": "snoozed into future", "task": { "status": "open", "lastTouchedDate": "2026-10-01", "snoozedUntil": "2026-10-30" }, "expect": false },
+      { "name": "snooze ended today", "task": { "status": "open", "lastTouchedDate": "2026-10-01", "snoozedUntil": "2026-10-29" }, "expect": true },
+      { "name": "on today's list", "task": { "status": "open", "lastTouchedDate": "2026-10-01", "todayDate": "2026-10-29" }, "expect": false },
+      { "name": "on an old today list", "task": { "status": "open", "lastTouchedDate": "2026-10-01", "todayDate": "2026-10-20" }, "expect": true }
+    ]
+  }
+}

@@ -57,6 +57,14 @@ namespace OutlookListener
             };
             Controls.Add(header);
 
+            // Work Track link (flagged mail / asks / meetings → the Work Track app).
+            var btnWorkTrack = TkeTheme.CreateSecondaryButton("Work Track…", 738, 26, 140, 38);
+            btnWorkTrack.Click += (s, e) =>
+            {
+                using (var form = new WorkTrackForm()) form.ShowDialog(this);
+            };
+            header.Controls.Add(btnWorkTrack);
+
             _grid = new DataGridView
             {
                 Left = 12,

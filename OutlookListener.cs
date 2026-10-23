@@ -17,6 +17,7 @@ namespace OutlookListener
         private static Outlook.Items _items;
         private static RuleSet _rules;
         private static FileSystemWatcher _rulesWatcher;
+        private static WorkTrackSync _workTrack;
         private static readonly string LogFile = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "OutlookListener", "listener.log");
@@ -40,6 +41,7 @@ namespace OutlookListener
                 LoadRules();
                 SetupRulesWatcher();
                 AttachToOutlook();
+                StartWorkTrack();
             }
             catch (Exception ex)
             {
@@ -120,6 +122,26 @@ namespace OutlookListener
             Console.WriteLine("Listening for new mail...");
         }
 
+        // Optional link to Work Track (flagged mail, asks, calendar) - see WorkTrackSync.cs.
+        // A failure here never stops the rules from running.
+        private static void StartWorkTrack()
+        {
+            try
+            {
+                _workTrack = new WorkTrackSync(_namespace, _items, line =>
+                {
+                    Console.WriteLine(line);
+                    AppendToLogFile(line);
+                });
+                _workTrack.Start();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Work Track link not started: " + Unwrap(ex));
+                _workTrack = null;
+            }
+        }
+
         private static void Items_ItemAdd(object item)
         {
             try
@@ -134,6 +156,11 @@ namespace OutlookListener
                 AppendToLogFile(line);
 
                 if (mail != null) ApplyRules(mail);
+                if (mail != null && _workTrack != null)
+                {
+                    try { _workTrack.OnNewMail(mail); }
+                    catch (Exception ex) { Console.WriteLine("[Work Track] " + Unwrap(ex)); }
+                }
             }
             catch (Exception ex)
             {
@@ -201,6 +228,7 @@ namespace OutlookListener
             try
             {
                 if (_rulesWatcher != null) { _rulesWatcher.EnableRaisingEvents = false; _rulesWatcher.Dispose(); }
+                if (_workTrack != null) _workTrack.Stop();
                 if (_items != null) { _items.ItemAdd -= Items_ItemAdd; Marshal.ReleaseComObject(_items); }
                 if (_inbox != null) Marshal.ReleaseComObject(_inbox);
                 if (_namespace != null) Marshal.ReleaseComObject(_namespace);
